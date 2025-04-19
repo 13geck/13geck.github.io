@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* Page styling: background, button styles*/
+        body {background-color: #3c0851; color: #6d6407;}
+        button { margin-top: 10px; padding: 10px; font-size: 16px; background-color: #6d6407; color:white;}
+        button:hover { background-color: #968f4a; }
+    </style>
+    
+    <title>GT Racing Game Split</title>
+</head>
+<body>
+
+    <!-- Roster Display -->
+    <div id="rosterDisplay">
+        <h2>Driver Roster</h2>
+        <table id="driverTable">
+            <tr>
+                <th>Number</th>
+                <th>Name</th>
+                <th>Schedule</th>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Qualifying Button-->
+    <button id="qualifyBtn" onclick="startQualifying()">Start Qualifying</button>
+    
+    <script>
+        //misc variables
+        var lapCounter = 0;
+        var maxLaps = 0;
+        var raceSnapshots = [];
+        var gridPositions = {};
+        // Driver Stats Section  ----------------------------------------------------------------------------------------------------------------------------------------
+
+        // Driver roster: includes number, name, equipment rating, driver rating, and schedule
+        var drivers = [
+            ["00", "Tommy Walkowaik", "D", "D", "Part Time"],
+            ["07", "Jeremy McDermit", "E", "E", "Part Time"],
+            ["4", "Tom Pickerell", "B", "A", "Full Time"],
+            ["5", "Alyssa Papyrocky", "B", "B", "Full Time"],
+            ["6", "Eric Hersey", "D", "D", "Full Time"],
+            ["10", "Jim Laird", "B", "A", "Full Time"],
+            ["13", "Gavin Thunhorst", "C", "C", "Full Time"],
+            ["18", "Mark Stewart", "C", "A", "Full Time"],
+            ["19", "Dennis Kurras", "C", "B", "Full Time"],
+            ["21", "Jerry Curran", "D", "E", "Part Time"],
+            ["23", "Jared Campbell", "B", "D", "Full Time"],
+            ["24", "Justin Brown", "E", "D", "Part Time"],
+            ["29", "Cody Triola", "B", "B", "Full Time"],
+            ["43", "Ray Mineri", "E", "E", "Part Time"],
+            ["45", "Herbert Thunhorst", "D", "C", "Part Time"],
+            ["49", "Jack Hany Jr.", "B", "B", "Full Time"],
+            ["52", "Joshua Creel", "C", "C", "Full Time"],
+            ["58", "Brandon Hubbard", "E", "D", "Part Time"],
+            ["68", "Russ Jansen", "D", "D", "Full Time"],
+            ["70", "Kyle Soper", "C", "B", "Full Time"],
+            ["77", "Tim Mulqueen", "E", "E", "Full Time"],
+            ["79", "Bill Wegmann Sr.", "C", "C", "Part Time"],
+            ["89", "Ed Cheslak", "B", "C", "Full Time"],
+            ["97", "Evan Gabriel", "C", "C", "Part Time"]
+        ];
+        
+        // Convert letter rating (A-E) to numerical value
+        function ratingToValue(rating) {
+            if (rating === "A") return 3;
+            if (rating === "B") return 2.5;
+            if (rating === "C") return 2;
+            if (rating === "D") return 1.5;
+            if (rating === "E") return 1;
+            return 0;
+        }
+
+        // Move driver table into the roster display
+        var table = document.getElementById("driverTable");
+        for (var i = 0; i < drivers.length; i++) {
+            var row = table.insertRow(-1);
+            row.insertCell(0).innerText = drivers[i][0];
+            row.insertCell(1).innerText = drivers[i][1];
+            row.insertCell(2).innerText = drivers[i][4];
+        }
+        
+        // Qualifying Section  ------------------------------------------------------------------------------------------------------------------------------------------
+        function startQualifying() {
+            // Remove qualifying button
+            document.getElementById("qualifyBtn").remove();
+
+            // Create new heading and table for qualifying
+            var qualDiv = document.createElement("div");
+            qualDiv.id = "qualifyingSection";
+            qualDiv.innerHTML = "<h2>Qualifying Results</h2>";
+            var qualTable = document.createElement("table");
+            qualTable.id = "qualifyingTable";
+            qualTable.innerHTML = `
+                <tr>
+                    <th>Grid</th>
+                    <th>Number</th>
+                    <th>Name</th>
+                    <th>Qualifying Speed</th>
+                </tr>`;
+            qualDiv.appendChild(qualTable);
+            document.body.insertBefore(qualDiv, document.getElementById("rosterDisplay"));
+            document.body.appendChild(document.getElementById("rosterDisplay"));
+
+            var gridPositions = {};        
+
+            // Calculate qualifying speeds based on driver and equipment ratings
+            var driverStats = [];
+            for (var i = 0; i < drivers.length; i++) {
+                var equipVal = ratingToValue(drivers[i][2]);
+                var driverVal = ratingToValue(drivers[i][3]);
+                var qualSpeed = (Math.random() * (equipVal * 2)) + driverVal;
+                driverStats.push({
+                    index: i,
+                    number: drivers[i][0],
+                    name: drivers[i][1],
+                    qualSpeed: qualSpeed,
+                    driverRating: driverVal,
+                    equipmentRating: equipVal
+                });
+            }
+
+            // Sort drivers by qualifying speed with random tie-breaker
+            driverStats.sort(function (a, b) {
+                if (b.qualSpeed !== a.qualSpeed) {
+                    return b.qualSpeed - a.qualSpeed;
+                } else {
+                    return Math.random() - 0.5;
+                }
+            });
+
+            // Display qualifying results
+            for (var j = 0; j < driverStats.length; j++) {
+                var row = qualTable.insertRow(-1);
+                            if (j < 20) {
+                        // Assign grid position for the top 20 drivers
+                        row.insertCell(0).innerText = j + 1;
+                        gridPositions[driverStats[j].name] = j + 1;  // Store grid position
+                    } else {
+                        // Mark drivers who didn't qualify (DNQ)
+                        row.insertCell(0).innerText = "DNQ";
+                        gridPositions[driverStats[j].name] = "DNQ";  // Store DNQ
+                    }
+                row.insertCell(1).innerText = driverStats[j].number;
+                row.insertCell(2).innerText = driverStats[j].name;
+                row.insertCell(3).innerText = driverStats[j].qualSpeed.toFixed(3);
+            }
+
+            // Save top 20 qualified drivers
+            window.qualifiedDrivers = driverStats.slice(0, 20);
+            window.gridPositions = gridPositions;
+
+            // Race button
+            var raceButton = document.createElement("button");
+            raceButton.textContent = "Start Race";
+            raceButton.id = "raceBtn";
+            raceButton.style.color = "white"; 
+            raceButton.onclick = startRace;
+            qualDiv.appendChild(raceButton);
+        }
+            //Race Section ----------------------------------------------------------------------------------------------------------------------------------------------
+            function startRace() {
+                // Remove race button
+                document.getElementById("raceBtn").remove();
+
+                // Create new heading and table for race
+                var raceDiv = document.createElement("div");
+                raceDiv.id = "raceSection"
+                raceDiv.innerHTML = "<h2>Race Standings</h2>";
+                var raceTable = document.createElement("table");
+                raceTable.id = "raceTable";
+                raceTable.innerHTML = `
+                        <tr id="lapInfoRow">
+                            <td colspan="5" style="font-weight:bold; text-align:center;">Lap 1 of 10</td>
+                         </tr>
+                    <tr>
+                        <th>Lap</th>
+                        <th>Position</th>
+                        <th>Number</th>
+                        <th>Name</th>
+                        <th>Current Speed</th>
+                    </tr>`;
+                raceDiv.appendChild(raceTable);
+                document.body.insertBefore(raceDiv, document.getElementById("qualifyingSection"));
+
+          
+
+                // Set race conditions
+                lapCounter = 0;
+                maxLaps = 10;
+                
+                 // Assign initial race speeds based on grid position
+                for (var i = 0; i < window.qualifiedDrivers.length; i++) {
+                    var baseSpeed = 10 - Math.floor(i / 2);
+                    if (baseSpeed < 1) baseSpeed = 1;
+                    window.qualifiedDrivers[i].raceSpeed = baseSpeed;
+                }
+                raceLoop();
+            }
+            // Begin the race loop
+                function raceLoop() {
+                    if (lapCounter >= maxLaps) {
+                        raceSnapshots[lapCounter] = [...qualifiedDrivers];
+                        console.log("Race finished!");
+                        generatePostRaceStats();
+                        return;
+                    }
+                    lapCounter++;
+
+                    // Update lap info row
+                    document.getElementById("lapInfoRow").cells[0].innerText = "Lap " + lapCounter + " of " + maxLaps;
+
+                    // Calculate current lap delta and new race speed for each driver -----------------------------------------------------------------------------------
+                    var gridPositions = {};
+                    for (var i = 0; i < qualifiedDrivers.length; i++) {
+                        var driver = qualifiedDrivers[i];
+                        gridPositions[driver.name] = i + 1;
+                        
+                        // Calculate current lap delta
+                        var delta = driver.driverRating + (Math.random() * driver.equipmentRating * 2);
+                        driver.currentLapDelta = delta;
+
+                        // Adjust current speed from previous lap
+                        var prevSpeed = driver.raceSpeed;
+                        if (delta < prevSpeed) {
+                            driver.raceSpeed = prevSpeed - (delta / 2);
+                        } else {
+                            driver.raceSpeed = prevSpeed + (delta / 2);
+                        }
+                    }
+
+                    // Handle passing from back to front ----------------------------------------------------------------------------------------------------------------
+                    // First pass attempt
+                    for (var i = qualifiedDrivers.length - 1; i > 0; i--) {
+                        var trailing = qualifiedDrivers[i];
+                        var ahead = qualifiedDrivers[i - 1];
+                        var diff = trailing.raceSpeed - ahead.raceSpeed;
+                        var chance = 0;
+
+                        // Pass probability table
+                        if (diff >= 5) chance = 100;
+                        else if (diff >= 3) chance = 80;
+                        else if (diff >= 1) chance = 60;
+                        else if (diff > 0) chance = 40;
+
+                        // Pass logic
+                        if (Math.random() * 100 < chance) {
+                            qualifiedDrivers[i] = ahead;
+                            qualifiedDrivers[i - 1] = trailing;
+
+                            i--; // If a driver is passed, this prevents them from getting erroneous extra passes
+
+                            // Second pass attempt
+                            var newPos = i - 1;
+                            if (newPos >= 0) {
+                                var ahead2 = qualifiedDrivers[newPos];
+                                diff = trailing.raceSpeed - ahead2.raceSpeed;
+
+                                // Pass probability table 
+                                if (diff >= 5) chance = 80;
+                                else if (diff >= 3) chance = 60;
+                                else if (diff >= 1) chance = 40;
+                                else if (diff > 0) chance = 20;
+                                else chance = 0;
+
+                                // Pass logic
+                                if (Math.random() * 100 < chance) {
+                                    qualifiedDrivers[i] = ahead2;
+                                    qualifiedDrivers[newPos] = trailing;
+
+                                    // Third pass attempt
+                                    var newPos2 = newPos - 1;
+                                    if (newPos2 >= 0) {
+                                        var ahead3 = qualifiedDrivers[newPos2];
+                                        diff = trailing.raceSpeed - ahead3.raceSpeed;
+
+                                        // Pass probability table
+                                        if (diff >= 5) chance = 60;
+                                        else if (diff >= 3) chance = 40;
+                                        else if (diff >= 1) chance = 20;
+                                        else chance = 0;
+
+                                        // Pass logic
+                                        if (Math.random() * 100 < chance) {
+                                            qualifiedDrivers[newPos2] = trailing;
+                                            qualifiedDrivers[newPos] = ahead3;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Create driver rows once on lap 1
+                    if (lapCounter === 1) {
+                        for (var i = 0; i < qualifiedDrivers.length; i++) {
+                            var row = raceTable.insertRow(-1);
+                            row.id = "driverRow" + i;
+
+                            var cellLap = row.insertCell(0);
+                            var cellGrid = row.insertCell(1);
+                            var cellNumber = row.insertCell(2);
+                            var cellName = row.insertCell(3);
+                            var cellSpeed = row.insertCell(4);
+                        }
+                    }
+
+                    // Update driver rows each lap
+                    for (var i = 0; i < qualifiedDrivers.length; i++) {
+                        var row = document.getElementById("driverRow" + i);
+                        var driver = qualifiedDrivers[i];
+
+                        row.cells[0].innerText = lapCounter;
+                        row.cells[1].innerText = i + 1;
+                        row.cells[2].innerText = driver.number;
+                        row.cells[3].innerText = driver.name;
+                        row.cells[4].innerText = driver.raceSpeed.toFixed(3);
+                    }
+                    setTimeout(raceLoop, 2000);
+
+                    // Store a snapshot of current lap order
+                    var snapshot = [];
+                    for (var i = 0; i < qualifiedDrivers.length; i++) {
+                        snapshot.push({
+                            name: qualifiedDrivers[i].name,
+                            raceSpeed: qualifiedDrivers[i].raceSpeed
+                        });
+                    }
+                    raceSnapshots[lapCounter] = snapshot;
+                }
+                //Post race stats section -------------------------------------------------------------------------------------------------------------------------------
+                function generatePostRaceStats() {
+                    // Build leader and lap data
+                    var lapsLed = {};
+                    var leaderHistory = [];
+                    var maxSpeed = -Infinity;
+                    var minSpeed = Infinity;
+                    var maxSpeedDriver = "";
+                    var minSpeedDriver = "";
+                    var totalPasses = 0;
+                    var passCounts = {};
+                    var speedSums = {};
+                    var gridPositions = {};
+
+                    // Initialise pass counts, speed sums, and grid positions
+                    for (var i = 0; i < qualifiedDrivers.length; i++) {
+                        var driver = qualifiedDrivers[i];
+                        passCounts[driver.name] = 0;
+                        speedSums[driver.name] = 0;
+                        gridPositions[driver.name] = i + 1; // Starting grid position
+                    }
+
+                    // Replay the race lap-by-lap from stored data
+                    for (var lap = 1; lap <= maxLaps; lap++) {
+                        // Assume the first driver in the list led the lap
+                        var leader = raceSnapshots[lap][0].name;
+                        leaderHistory.push(leader);
+                        if (!lapsLed[leader]) {
+                            lapsLed[leader] = 0;
+                        }
+                        lapsLed[leader]++;
+
+                        // Track speeds for highest/lowest
+                        for (var j = 0; j < raceSnapshots[lap].length; j++) {
+                            var driver = raceSnapshots[lap][j];
+                            if (lap !== 1) { // Skip lap 1 for high/low speed
+                                if (driver.raceSpeed > maxSpeed) {
+                                    maxSpeed = driver.raceSpeed;
+                                    maxSpeedDriver = driver.name;
+                                }
+                                if (driver.raceSpeed < minSpeed) {
+                                    minSpeed = driver.raceSpeed;
+                                    minSpeedDriver = driver.name;
+                                }
+                            }
+
+                            speedSums[driver.name] += driver.raceSpeed;
+
+                            // Count passes by comparing position to previous lap
+                            if (lap > 1) {
+                                var prevIndex = raceSnapshots[lap - 1].findIndex(d => d.name === driver.name);
+                                var positionGain = prevIndex - j;
+                                if (positionGain > 0) {
+                                    passCounts[driver.name] += positionGain;
+                                    totalPasses += positionGain;
+                                }
+                            }
+                        }
+                    }
+
+                    // Count unique leaders and lead changes
+                    var uniqueLeaders = new Set(leaderHistory);
+                    var leadChanges = 0;
+                    for (var i = 1; i < leaderHistory.length; i++) {
+                        if (leaderHistory[i] !== leaderHistory[i - 1]) {
+                            leadChanges++;
+                        }
+                    }
+
+                    // Add average speed and grid position columns to race table
+                    var raceTable = document.getElementById("raceTable");
+                    var headerRow = raceTable.rows[1];
+                    headerRow.insertCell(-1).outerHTML = "<th>Avg Speed</th>";
+                    headerRow.insertCell(-1).outerHTML = "<th>Grid</th>";
+
+                    for (var i = 0; i < qualifiedDrivers.length; i++) {
+                        var name = qualifiedDrivers[i].name;
+                        var row = document.getElementById("driverRow" + i);
+                        var avgSpeed = (speedSums[name] / maxLaps).toFixed(3);
+                        var gridPos = window.gridPositions[name];
+
+                        row.insertCell(-1).innerText = avgSpeed;
+                        row.insertCell(-1).innerText = gridPos;
+                    }
+
+                    // Build post-race stats output
+                    var statsDiv = document.createElement("div");
+                    statsDiv.innerHTML = `<h2>Post-Race Stats</h2>`;
+
+                    // Leaders by laps led
+                    var leaderList = Object.entries(lapsLed).sort((a, b) => b[1] - a[1]);
+                    var leaderHTML = "<b>Laps Led:</b><br>";
+                    for (var i = 0; i < leaderList.length; i++) {
+                        leaderHTML += `${leaderList[i][0]} led ${leaderList[i][1]} laps<br>`;
+                    }
+
+                    // Top 5 passers
+                    var passList = Object.entries(passCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                    var passHTML = "<b>Most Passes:</b><br>";
+                    for (var i = 0; i < passList.length; i++) {
+                        passHTML += `${passList[i][0]} made ${passList[i][1]} passes<br>`;
+                    }
+
+                    // Final summary
+                    statsDiv.innerHTML += `
+                        ${leaderHTML}<br>
+                        <b>Different Leaders:</b> ${uniqueLeaders.size}<br>
+                        <b>Lead Changes:</b> ${leadChanges}<br>
+                        <b>Total Passes:</b> ${totalPasses}<br>
+                        <b>Fastest Lap Speed:</b> ${maxSpeedDriver} (${maxSpeed.toFixed(3)})<br>
+                        <b>Slowest Lap Speed:</b> ${minSpeedDriver} (${minSpeed.toFixed(3)})<br><br>
+                        ${passHTML}
+                    `;
+
+                    document.body.insertBefore(statsDiv, document.body.firstChild);
+                }
+    </script>    
+</body>
+</html>
